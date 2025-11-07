@@ -1,16 +1,16 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {StyleSheet, ImageBackground, View} from 'react-native';
+import {StyleSheet, Image, View} from 'react-native';
 import {CommonActions} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { IMAGES } from '../../Assets/Images';
 
 const SpalshScreen = ({navigation}: any) => {
-  const [screen, setScreen] = useState('Login'); // Default to 'Login'
+  const [screen, setScreen] = useState('Login');
 
   useEffect(() => {
     const loadScreen = async () => {
       try {
-        const data = await AsyncStorage.getItem('user'); // Await the async call
-        console.log(data)
+        const data = await AsyncStorage.getItem('user');
         if (data && JSON.parse(data)) {
           setScreen('Home');
         } else {
@@ -24,7 +24,6 @@ const SpalshScreen = ({navigation}: any) => {
   }, []);
 
   const loadData = useCallback(async () => {
-    // remove user signup so pass Start screen
     try {
       setTimeout(async () => {
         navigation.dispatch(
@@ -32,41 +31,39 @@ const SpalshScreen = ({navigation}: any) => {
             index: 0,
             routes: [
               {
-                name: 'Login',
+                name: screen,
               },
             ],
           }),
         );
-      }, 1000);
+      }, 1500);
     } catch (error) {
       console.log('error', error);
     }
-  }, [navigation]);
+  }, [navigation, screen]);
 
   useEffect(() => {
-    loadData(), [];
-  });
+    loadData();
+  }, [loadData]);
 
   return (
-    <View></View>
+    <View style={styles.container}>
+      <Image source={IMAGES.LOGO} style={styles.logo} />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  container: {
     flex: 1,
-    resizeMode: 'cover',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  content: {
-    color: 'red',
-  },
   logo: {
-    width: 150,
-    height: 150,
+    width: 180,
+    height: 160,
     resizeMode: 'contain',
-    marginBottom: 20,
-    marginTop: 20,
   },
 });
 

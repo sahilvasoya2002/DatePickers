@@ -1,7 +1,5 @@
 import React from 'react';
 import { StyleSheet, View} from 'react-native';
-// import {Provider, useSelector} from 'react-redux';
-// import store from './app/Reducers/Store';
 import AppNavigator from './app/Navigation/AppNavigator';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -10,11 +8,9 @@ function App(): React.JSX.Element {
   console.log('hello')
   return (
     <SafeAreaProvider style={{flex:1}}>
-      {/* <Provider store={store}> */}
       <NavigationContainer>
         <AppNavigator />
         </NavigationContainer>
-      {/* </Provider> */}
     </SafeAreaProvider>
   );
 }

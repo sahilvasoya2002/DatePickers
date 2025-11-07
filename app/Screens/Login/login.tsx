@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,180 +6,285 @@ import {
   Image,
   StyleSheet,
   StatusBar,
-  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import InputField from '../../Common/Input';
 import Button from '../../Common/button';
 import { isEmail, isEmpty } from '../../Common/helper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Images } from '../../Common/images';
+import { loginUser } from '../../api/auth';
+import { IMAGES } from '../../Assets/Images';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS } from '../../Common/colors';
 
-const Login = ({navigation}:any) => {
+const Login = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [apiError, setApiError] = useState('');
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
-  const handleEmailChange = (text: string) => {
-    setEmail(text);
-  };
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () =>
+      setKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () =>
+      setKeyboardVisible(false)
+    );
 
-  const handlePasswordChange = (text: string) => {
-    setPassword(text);
-  };
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const handleSubmit = useCallback(async () => {
-    try {
-      if (isEmpty(email) || isEmpty(password)) {
-        Alert.alert('Fields cannot be empty');
-        return;
-      }
-      if (!isEmail(email)) {
-        Alert.alert('Please enter a valid email address');
-        return;
-      }
+    navigation.navigate('Home');
+    setEmailError('');
+    setPasswordError('');
+    setApiError('');
 
-      const payload = { email, password };
+    let hasError = false;
 
-      // Save email and password to AsyncStorage
-      await AsyncStorage.setItem('user', JSON.stringify(payload));
-
-      Alert.alert('Login Successful', 'Your credentials have been saved.');
-      navigation.navigate('Home');
-
-      console.log('Login Payload:', payload);
-    } catch (error) {
-      console.log('Error during login:', error);
+    if (isEmpty(email)) {
+      setEmailError('Email is required.');
+      hasError = true;
+    } else if (!isEmail(email)) {
+      setEmailError('Please enter a valid email.');
+      hasError = true;
     }
-  }, [email, navigation, password]);
+
+    if (isEmpty(password)) {
+      setPasswordError('Password is required.');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
+    setLoading(true);
+
+    try {
+      const data = await loginUser(email, password);
+      console.log('Login Response:', data);
+
+      if (data?.status === 'success') {
+        await AsyncStorage.setItem('user', JSON.stringify(data));
+        navigation.navigate('Home');
+      } else {
+        setApiError(data?.message || 'Invalid credentials. Please try again.');
+      }
+    } catch (error: any) {
+      setApiError(error.message || 'Something went wrong. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }, [email, password, navigation]);
 
   return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor="black" barStyle="light-content" />
-      <Image
-        source={Images.Logo}
-        style={styles.logo}
-      />
-      <View style={styles.card}>
-        <Text style={styles.title}>Sign In</Text>
-        <Text style={styles.subtitle}>Please Sign In to continue</Text>
-        <View style={{flexDirection: 'column', gap: 20, marginTop: 10}}>
-          <InputField
-            placeholder="Email"
-            inputStyle={styles.input}
-            containerStyle={styles.inputContainer}
-            onChangeText={handleEmailChange}
-            value={email}
-          />
-          <InputField
-            placeholder="Password"
-            isPassword
-            inputStyle={styles.input}
-            containerStyle={styles.inputContainer}
-            onChangeText={handlePasswordChange}
-            value={password}
-          />
-        </View>
-        <TouchableOpacity style={styles.forgotPasswordContainer}>
-          <Text style={styles.forgotPassword}>Forgot Password?</Text>
-        </TouchableOpacity>
-        <Button title="SIGN IN" onPress={handleSubmit} buttonStyle={styles.button} textStyle={styles.buttonText}/>
-      </View>
-      <View style={styles.bottomContainer}>
-        <Text style={styles.signUpText}>
-          Don’t have an account? <Text style={styles.signUpLink}>Sign Up</Text>
-        </Text>
-      </View>
-    </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FDF6EC' }} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={{ flex: 1 }}>
+            <StatusBar backgroundColor="#FDF6EC" barStyle="dark-content" />
+
+            <Image
+              source={IMAGES.LOGO}
+              style={[
+                styles.logo,
+                { marginTop: isKeyboardVisible ? 0 : 80 },
+              ]}
+              resizeMode="contain"
+            />
+
+            <ScrollView
+              contentContainerStyle={styles.scrollContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.bottomSheet}>
+                <Text style={styles.title}>Welcome Back</Text>
+                <Text style={styles.subtitle}>Sign in to continue your journey</Text>
+
+                <View style={styles.formContainer}>
+                  <InputField
+                    placeholder="Email"
+                    inputStyle={styles.input}
+                    containerStyle={[
+                      styles.inputContainer,
+                      emailError ? styles.errorBorder : {},
+                    ]}
+                    onChangeText={text => {
+                      setEmail(text);
+                      if (emailError) setEmailError('');
+                    }}
+                    value={email}
+                  />
+                  {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+
+                  <InputField
+                    placeholder="Password"
+                    isPassword
+                    inputStyle={styles.input}
+                    containerStyle={[
+                      styles.inputContainer,
+                      passwordError ? styles.errorBorder : {},
+                    ]}
+                    onChangeText={text => {
+                      setPassword(text);
+                      if (passwordError) setPasswordError('');
+                    }}
+                    value={password}
+                  />
+                  {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+                </View>
+
+                <TouchableOpacity style={styles.forgotPasswordContainer}>
+                  <Text style={styles.forgotPassword}>Forgot Password?</Text>
+                </TouchableOpacity>
+
+                {loading ? (
+                  <ActivityIndicator size="large" color="#8B4513" style={{ marginTop: 20 }} />
+                ) : (
+                  <Button
+                    title="SIGN IN"
+                    onPress={handleSubmit}
+                    buttonStyle={styles.button}
+                    textStyle={styles.buttonText}
+                  />
+                )}
+
+                {apiError ? <Text style={styles.apiErrorText}>{apiError}</Text> : null}
+
+                <View style={styles.bottomContainer}>
+                  <Text style={styles.signUpText}>
+                    Don’t have an account?{' '}
+                    <Text style={styles.signUpLink}>Sign Up</Text>
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-},
-logo: {
-    width: 140,
-    height: 140,
-    marginBottom: 40,
-    marginTop :80
+    backgroundColor: COLORS.background,
   },
-  card: {
-    backgroundColor: '#555',
-    // padding: 20,
-    borderRadius: 10,
-    width: '100%',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+  },
+  logo: {
+    width: 180,
+    height: 160,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  bottomSheet: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingVertical: 35,
+    paddingHorizontal: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 10,
+    fontSize: 26,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 6,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    marginBottom: 30,
+    fontSize: 15,
+    color: '#6D4C41',
+    marginBottom: 25,
     textAlign: 'center',
   },
+  formContainer: {
+    flexDirection: 'column',
+    gap: 8,
+  },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    textAlign:'center',
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    width: '100%',
-    height: 50,
-    // justifyContent:'space-between'
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 12,
+    height: 48,
+  },
+  errorBorder: {
+    borderColor: '#D32F2F',
   },
   input: {
     flex: 1,
-    height: 40,
-    color: '#000',
+    height: '100%',
+    color: '#3C2A21',
   },
-  icon: {
-    marginLeft: 10,
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  apiErrorText: {
+    color: '#D32F2F',
+    fontSize: 14,
+    marginTop: 15,
+    textAlign: 'center',
   },
   forgotPasswordContainer: {
     alignSelf: 'flex-end',
-    marginTop: 15,
+    marginTop: 4,
   },
   forgotPassword: {
-    textAlign: 'right',
-    color: '#fff',
-    marginBottom: 15,
-    fontWeight: 'bold',
+    color: '#A0522D',
+    fontWeight: '600',
+    fontSize: 14,
   },
   button: {
-    backgroundColor: '#B64425',
-    padding: 15,
-    borderRadius: 5,
+    backgroundColor: '#8B4513',
+    padding: 14,
+    borderRadius: 10,
     width: '100%',
     alignItems: 'center',
-    marginTop: 30,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  signUpText: {
-    color: '#fff',
     marginTop: 20,
   },
-  signUpLink: {
-    fontWeight: 'bold',
+  buttonText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 16,
   },
   bottomContainer: {
-    position: 'absolute',
-    bottom: 30,
     alignItems: 'center',
+    marginTop: 20,
+  },
+  signUpText: {
+    color: '#3C2A21',
+    fontSize: 14,
+  },
+  signUpLink: {
+    fontWeight: '700',
+    color: '#8B4513',
   },
 });
 

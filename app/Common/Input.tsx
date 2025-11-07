@@ -1,14 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { TextInput, View, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { TextInput, View, StyleSheet, Image, TouchableOpacity, TextInputProps } from 'react-native';
 
-interface InputFieldProps {
+interface InputFieldProps extends TextInputProps {
   placeholder: string;
   isPassword?: boolean;
   inputStyle?: any;
   containerStyle?: any;
-  value: string;
-  onChangeText: (text: string) => void;
 }
+
 const InputField = ({
   placeholder,
   isPassword = false,
@@ -16,37 +15,45 @@ const InputField = ({
   containerStyle,
   value,
   onChangeText,
+  ...rest
 }: InputFieldProps) => {
-    const [isVisible , setIsVisisble] = useState(false);
+  const [isVisible, setIsVisible] = useState(isPassword);
 
-    const onPressIcon = useCallback(()=>{
-        setIsVisisble(!isVisible);
-    },[isVisible]);
+  const onPressIcon = useCallback(() => {
+    setIsVisible(!isVisible);
+  }, [isVisible]);
+
   return (
-    <View style={containerStyle}>
+    <View style={[styles.container, containerStyle]}>
       <TextInput
-        style={inputStyle}
+        style={[styles.input, inputStyle]}
         placeholder={placeholder}
         placeholderTextColor="#aaa"
-        secureTextEntry={isVisible}
+        secureTextEntry={isPassword && isVisible}
         value={value}
         onChangeText={onChangeText}
+        {...rest}
       />
-      {/* {isPassword && <TouchableOpacity style={styles.iconContainer} onPress={onPressIcon}><Image source={!isVisible ? require('../Assets/Images/visible.png') : require('../Assets/Images/invisible.png')} style={!isVisible ? styles.visibleIcon : styles.inVisibleIcon}/></TouchableOpacity>} */}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  iconContainer : {
-    height : 20 , width : 20 , justifyContent:'center' , alignItems:'center' , textAlign:'center',
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  visibleIcon : {
-    height:12 , width:18,
+  input: {
+    flex: 1,
   },
-  inVisibleIcon : {
-    height:16 , width:18,
+  iconContainer: {
+    paddingHorizontal: 8,
   },
-  });
+  icon: {
+    width: 18,
+    height: 18,
+    tintColor: '#666',
+  },
+});
 
 export default InputField;
